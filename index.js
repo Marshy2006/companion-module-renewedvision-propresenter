@@ -438,6 +438,7 @@ instance.prototype.emptyCurrentState = function () {
 		sd_connection_status: 'Disconnected',
 		follower_connection_status: 'Disconnected',
 		video_countdown_timer: 'N/A',
+		video_countdown_timer_short: 'N/A',
 		watched_clock_current_time: 'N/A',
 		current_stage_display_name: 'N/A',
 		current_stage_display_index: 'N/A',
@@ -501,6 +502,10 @@ instance.prototype.initVariables = function () {
 		{
 			label: 'Video Countdown Timer',
 			name: 'video_countdown_timer',
+		},
+		{
+			label: 'Video Countdown Timer Short',
+			name: 'video_countdown_timer_short',
 		},
 		{
 			label: 'Follower Connection Status',
@@ -2216,6 +2221,17 @@ instance.prototype.onSDWebSocketMessage = function (message) {
 			if (objData.hasOwnProperty('txt')) {
 				// Record new video countdown timer value in dynamic var
 				self.updateVariable('video_countdown_timer', objData.txt)
+				if (objData.txt.replace(/^0+/, '').length == 6) {
+                    var countdown_short = objData.txt.replace(/^0+/, '').substring(1).replace(/^0+/, '')
+                    if (countdown_short.length == 3) {
+                        countdown_short = countdown_short.substring(1)
+                    } else {
+
+                    }
+                } else {
+                    var countdown_short = objData.txt
+                }
+                self.updateVariable('video_countdown_timer_short', countdown_short.replace(/^0+/, ''))
 			}
 			break
 	}
