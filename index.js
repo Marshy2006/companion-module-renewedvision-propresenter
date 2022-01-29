@@ -20,10 +20,12 @@ function instance(system, id, config) {
  *
  * .internal contains the internal state of the module
  * .dynamicVariable contains the values of the dynamic variables
+ * .dynamicVariablesDefs contains the definitions of the dynamic variables - this list is passed to self.setVariableDefinitions() so  WebUI etc can know what the module vars are.
  */
 instance.prototype.currentState = {
 	internal: {},
 	dynamicVariables: {},
+	dynamicVariablesDefs: [],
 }
 
 /**
@@ -32,20 +34,27 @@ instance.prototype.currentState = {
 instance.prototype.config_fields = function () {
 	var self = this
 	return [
+		// ********** Required Settings ************
 		{
 			type: 'text',
 			id: 'info',
 			width: 12,
-			label: 'Information',
-			value: "This module communicates with Renewed Vision's ProPresenter 6 or 7",
+			label: '',
+			value: "<br>", // Dummy space to separate settings into obvious sections
+		},
+		{
+			type: 'text',
+			id: 'info',
+			width: 12,
+			label: 'Required Settings',
+			value: "These settings are required by this module to communicate with Renewed Vision's ProPresenter 6 or 7.<br>Make sure to enable Network and ProPresenter Remote Controller Password in ProPresenter Preferences",
 		},
 		{
 			type: 'textinput',
 			id: 'host',
-			label: 'ProPresenter IP',
+			label: 'ProPresenter IP (or hostname)',
 			width: 6,
 			default: '',
-			regex: self.REGEX_IP,
 		},
 		{
 			type: 'textinput',
@@ -58,57 +67,23 @@ instance.prototype.config_fields = function () {
 		{
 			type: 'textinput',
 			id: 'pass',
-			label: 'ProPresenter Remote Password',
+			label: 'ProPresenter Remote Controller Password',
 			width: 6,
-		},
-		{
-			type: 'textinput',
-			id: 'indexOfClockToWatch',
-			label: 'Index of Clock to Watch',
-			tooltip:
-				'Index of clock to watch.  Dynamic variable "watched_clock_current_time" will be updated with current value once every second.',
-			default: '0',
-			width: 4,
-			regex: self.REGEX_NUMBER,
-		},
-		{
-			type: 'dropdown',
-			id: 'GUIDOfStageDisplayScreenToWatch',
-			label: 'Pro7 Stage Display Screen To Monitor Layout',
-			tooltip:
-				'Pro7 Stage Display Screen To Monitor Layout - (This list is refreshed the next time you EDIT config, after a succesful connection)',
-			default: '',
-			width: 6,
-			choices: self.currentState.internal.pro7StageScreens,
-		},
-		{
-			type: 'dropdown',
-			id: 'sendPresentationCurrentMsgs',
-			label: 'Send Presentation Info Requests To ProPresenter',
-			tooltip:
-				'You may want to turn this off for Pro7 as it can cause performance issues - Turning it off will mean the module does not update the dynamic variables: remaining_slides, total_slides or presentation_name',
-			default: 'yes',
-			width: 6,
-			choices: [
-				{ id: 'no', label: 'No' },
-				{ id: 'yes', label: 'Yes' },
-			],
-		},
-		{
-			type: 'textinput',
-			id: 'clientVersion',
-			label: 'ProRemote Client Version',
-			tooltip:
-				'No need to update this - unless trying to work around an issue with connectivity for future Pro7 releases.',
-			width: 6,
-			default: '701',
 		},
 		{
 			type: 'text',
 			id: 'info',
 			width: 12,
+			label: '',
+			value: "<br>", // Dummy space to separate settings into obvious sections
+		},
+		// ********** Stage Display Settings ************
+		{
+			type: 'text',
+			id: 'info',
+			width: 12,
 			label: 'Stage Display Settings (Optional)',
-			value: 'The following fields are only needed if you want the video countdown timer in a dynamic variable.',
+			value: 'The following fields are only needed if you want to track the video countdown timer in a module variable.',
 		},
 		{
 			type: 'dropdown',
@@ -140,10 +115,116 @@ instance.prototype.config_fields = function () {
 		},
 		{
 			type: 'text',
+			id: 'info',
+			width: 12,
+			label: '',
+			value: "<br>", // Dummy space to separate settings into obvious sections
+		},
+		// ********** Backwards Compatibility Settings ************
+		{
+			type: 'text',
+			id: 'info',
+			width: 12,
+			label: 'Backwards Compatibility Settings (Optional)',
+			value: "These settings are optional. They provide backwards compatibility for older features that are not longer required for new users/setups and newer features have been added that supersede them",
+		},
+		{
+			type: 'textinput',
+			id: 'indexOfClockToWatch',
+			label: 'Index of Clock to Watch',
+			tooltip:
+				'Index of clock to watch.  Dynamic variable "watched_clock_current_time" will be updated with current value once every second.',
+			default: '0',
+			width: 4,
+			regex: self.REGEX_NUMBER,
+		},
+		{
+			type: 'dropdown',
+			id: 'GUIDOfStageDisplayScreenToWatch',
+			label: 'Pro7 Stage Display Screen To Monitor Layout',
+			tooltip:
+				'Pro7 Stage Display Screen To Monitor Layout - (This list is refreshed the next time you EDIT config, after a succesful connection)',
+			default: '',
+			width: 6,
+			choices: self.currentState.internal.pro7StageScreens,
+		},
+		{
+			type: 'text',
+			id: 'info',
+			width: 12,
+			label: '',
+			value: "<br>", // Dummy space to separate settings into obvious sections
+		},
+		// ********** Workaround Settings ************
+		{
+			type: 'text',
+			id: 'info',
+			width: 12,
+			label: 'Workaround Settings (Optional)',
+			value: "These settings are optional. They provide \"Workarounds\" that might be needed for some setups.",
+		},
+		{
+			type: 'dropdown',
+			id: 'sendPresentationCurrentMsgs',
+			label: 'Send Presentation Info Requests To ProPresenter',
+			tooltip:
+				'You may want to turn this off for Pro7 as it can cause performance issues - Turning it off will mean the module does not update the dynamic variables: remaining_slides, total_slides or presentation_name',
+			default: 'yes',
+			width: 6,
+			choices: [
+				{ id: 'no', label: 'No' },
+				{ id: 'yes', label: 'Yes' },
+			],
+		},
+		{
+			type: 'dropdown',
+			id: 'typeOfPresenationRequest',
+			label: 'Type of Presentation Info Requests',
+			default: 'auto',
+			tooltip:
+				'Manual may workaround performance issues for some users - give it a try',
+			width: 6,
+			choices: [
+				{ id: 'auto', label: 'Automatic' },
+				{ id: 'manual', label: 'Manual' },
+			],
+		},
+		{
+			type: 'textinput',
+			id: 'clientVersion',
+			label: 'ProRemote Client Version',
+			tooltip:
+				'No need to update this - unless trying to work around an issue with connectivity for future Pro7 releases.',
+			width: 6,
+			default: '701',
+		},
+		{
+			type: 'dropdown',
+			id: 'looksPolling', // Pro 7.8 on MacOs already sends notifications for look changes - but Pro 7.8.2 does not - so added this optional poll to enabled look feedback
+			label: 'Looks Polling',
+			default: 'disabled',
+			tooltip:
+				'Poll ProPresenter Looks info once per second to enable Feedback for Active Look',
+			width: 6,
+			choices: [
+				{ id: 'disabled', label: 'Disabled' },
+				{ id: 'enabled', label: 'Enabled' },
+			],
+		},
+		{
+			type: 'text',
+			id: 'info',
+			width: 12,
+			label: '',
+			value: "<br><br>", // Dummy space to separate settings into obvious sections
+		},
+		// ********** Pro7 Follower Settings ************
+		{
+			type: 'text',
 			id: 'info2',
 			width: 12,
 			label: 'Pro7 Follower Settings (Optional)',
-			value: 'Optional *Beta* feature to mimic Pro6 Master-Control module',
+			value: 'Optional *Beta* feature to mimic Pro6 Master-Control module. (No longer needed for Pro7.8+ users)',
 		},
 		{
 			type: 'dropdown',
@@ -220,6 +301,10 @@ instance.prototype.init = function () {
 	if (self.config.host !== '' && self.config.port !== '') {
 		self.connectToProPresenter()
 		self.startConnectionTimer()
+
+		// Enabled Looks polling timer (which will only send looksRequests if option is enabled)
+		self.startLooksPollingTimer()
+
 		if (self.config.use_sd === 'yes') {
 			self.startSDConnectionTimer()
 			self.connectToProPresenterSD()
@@ -426,11 +511,18 @@ instance.prototype.emptyCurrentState = function () {
 		previousTimeOfLeaderClearMessage: null,
 		pro7Looks: [{ id: '0', label: 'Connect to Pro7 to Update' }],
 		pro7Macros: [{ id: '0', label: 'Connect to Pro7 to Update' }],
+		current_pro7_look_id: null,
+		awaitingSlideByLabelRequest: {}, // When user triggers action to find slide by label and trigger it, this module must first get and search the playlist.  So the request is stored here until response for playlistRequestAll is received and thee action can then be completed using the returned playlist data.
+		matchingPlaylistItemFound: false, // Flag used accross recursive calls to recursivelyScanPlaylistsObjToTriggerSlideByLabel()
+		awaitingGroupSlideRequest: {} // When user triggers a new GroupSlide request, this module must first get the presentation and then search for the group slide. So the request is stored here until response for presentationRequest is received and the action can then be completed using hte returned presentation data.
 	}
 
 	// The dynamic variable exposed to Companion
 	self.currentState.dynamicVariables = {
 		current_slide: 'N/A',
+		current_presentation_path: 'N/A',
+		current_announcement_slide: 'N/A',
+		current_announcement_presentation_path: 'N/A',
 		remaining_slides: 'N/A',
 		total_slides: 'N/A',
 		presentation_name: 'N/A',
@@ -446,22 +538,14 @@ instance.prototype.emptyCurrentState = function () {
 		current_pro7_look_name: 'N/A',
 	}
 
-	// Update Companion with the default state if each dynamic variable.
-	Object.keys(self.currentState.dynamicVariables).forEach(function (key) {
-		self.updateVariable(key, self.currentState.dynamicVariables[key])
-	})
-}
-
-/**
- * Initialize the available variables. (These are listed in the module config UI)
- */
-instance.prototype.initVariables = function () {
-	var self = this
-
-	var variables = [
+	self.currentState.dynamicVariablesDefs = [
 		{
-			label: 'Current slide number',
+			label: 'Current Slide number',
 			name: 'current_slide',
+		},
+		{
+			label: 'Current Presentation Path',
+			name: 'current_presentation_path'
 		},
 		{
 			label: 'Remaining Slides',
@@ -470,6 +554,14 @@ instance.prototype.initVariables = function () {
 		{
 			label: 'Total slides in presentation',
 			name: 'total_slides',
+		},
+		{
+			label: 'Current Announcement slide number',
+			name: 'current_announcement_slide',
+		},
+		{
+			label: 'Current Announcement Presentation Path',
+			name: 'current_announcement_presentation_path'
 		},
 		{
 			label: 'Presentation name',
@@ -513,10 +605,21 @@ instance.prototype.initVariables = function () {
 		},
 	]
 
-	self.setVariableDefinitions(variables)
+	// Update Companion with the default state if each dynamic variable.
+	Object.keys(self.currentState.dynamicVariables).forEach(function (key) {
+		self.updateVariable(key, self.currentState.dynamicVariables[key])
+	})
+}
+
+/**
+ * Initialize the available variables. (These are listed in the module config UI)
+ */
+instance.prototype.initVariables = function () {
+	var self = this
 
 	// Initialize the current state and update Companion with the variables.
 	self.emptyCurrentState()
+	self.setVariableDefinitions(self.currentState.dynamicVariablesDefs)  // Make sure to call this after self.emptyCurrentState() as it intializes self.currentState.dynamicVariablesDefs 
 }
 
 /**
@@ -527,8 +630,8 @@ instance.prototype.initVariables = function () {
 instance.prototype.updateVariable = function (name, value) {
 	var self = this
 
-	if (name !== 'watched_clock_current_time') {
-		// Avoid flooding log with timer updates... (may have to manually revert to debug future timer message issues)
+	if (!name.includes('_clock_')) {
+		// Avoid flooding log with timer updates by filtering out the regular clock variable updates
 		self.log('debug', 'updateVariable: ' + name + ' to ' + value)
 	}
 
@@ -543,6 +646,24 @@ instance.prototype.updateVariable = function (name, value) {
 	if (name === 'connection_status') {
 		self.checkFeedbacks('propresenter_module_connected')
 	}
+}
+
+instance.prototype.startLooksPollingTimer = function () {
+	var self = this
+	self.log('debug', 'Starting Looks Polling Timer')
+
+	// Create timer to poll looks each second (when option is enabled)
+	self.looksPollingTimer = setInterval(function () {
+
+		if (self.config.looksPolling == 'enabled' && self.socket.readyState == 1 /*OPEN*/) { // only send when option is enabled AND socket is OPEN
+			try {
+				self.socket.send('{"action": "looksRequest"}')
+			} catch (e) {
+				self.log('debug','NETWORK ' + e)
+				self.status(self.STATUS_ERROR, e.message)
+			}
+		}
+	}, 1000)
 }
 
 /**
@@ -625,11 +746,15 @@ instance.prototype.startFollowerConnectionTimer = function () {
 	self.log('debug', 'Starting Follower ConnectionTimer')
 	// Create a reconnect timer to watch the socket. If disconnected try to connect.
 	self.reconFollowerTimer = setInterval(function () {
-		if (self.followersocket === undefined || self.followersocket.readyState === 3 /*CLOSED*/) {
-			// Not connected. Try to connect again.
+		if (self.followersocket === undefined || self.followersocket.readyState === 3 /*CLOSED*/ || self.followersocket.readyState === 2 /*CLOSING*/) {
+			// Not connected. 
+			self.currentState.internal.wsFollowerConnected = false
+			// Try to connect again.
 			self.connectToFollowerProPresenter()
 		} else {
-			self.currentState.internal.wsFollowerConnected = true
+			if (self.followersocket.readyState === 1 /*OPEN*/) {
+				self.currentState.internal.wsFollowerConnected = true
+			}
 		}
 	}, 3000)
 }
@@ -762,7 +887,7 @@ instance.prototype.connectToProPresenter = function () {
 	})
 
 	//self.socket.on('connect', function () {
-	//	debug("Connected to ProPresenter remote control");
+	//	self.log('debug',"Connected to ProPresenter remote control");
 	//});
 
 	self.socket.on('close', function (code, reason) {
@@ -842,10 +967,9 @@ instance.prototype.connectToProPresenterSD = function () {
 		}
 	})
 
-	//self.sdsocket.on('connect', function () {
-	//	debug("Connected to ProPresenter stage display");
-	//	self.log('info', "Connected to ProPresenter stage display" + self.config.host +":"+ self.config.sdport);
-	//});
+	self.sdsocket.on('connect', function () {
+		self.log('debug',"Connected to ProPresenter stage display");
+	});
 
 	self.sdsocket.on('close', function (code, reason) {
 		// Event is also triggered when a reconnect attempt fails.
@@ -916,6 +1040,7 @@ instance.prototype.connectToFollowerProPresenter = function () {
 		if (self.config.control_follower === 'yes') {
 			self.log('warn', 'Follower Socket error: ' + err.message)
 		}
+		self.currentState.internal.wsFollowerConnected = false
 	})
 
 	self.followersocket.on('close', function (code, reason) {
@@ -949,20 +1074,71 @@ instance.prototype.actions = function (system) {
 			label: 'Specific Slide',
 			options: [
 				{
-					type: 'textinput',
+					type: 'textwithvariables',
 					label: 'Slide Number',
 					id: 'slide',
 					default: 1,
 					regex: self.REGEX_SIGNED_NUMBER,
 				},
 				{
-					type: 'textinput',
+					type: 'textwithvariables',
 					label: 'Presentation Path',
 					id: 'path',
 					default: '',
 					tooltip: 'See the README for more information',
 					regex: '/^$|^\\d+$|^\\d+(\\.\\d+)*:\\d+$/',
 				},
+			],
+		},
+		slideLabel: {
+			label: 'Specific Slide With Label',
+			options: [
+				{
+					type: 'textwithvariables',
+					label: 'Playlist Name',
+					tooltip: 'Find the first playlist with that matches this playlist name',
+					id: 'playlistName',
+				},
+				{
+					type: 'textwithvariables',
+					label: 'Presentation Name',
+					tooltip: 'Find the first presentation (in above playlist) that matches this presentation name',
+					id: 'presentationName',
+				},
+				{
+					type: 'textwithvariables',
+					label: 'Slide With Label',
+					tooltip: 'Find the first slide (in above presentation) with matching *Slide Label* and trigger that slide',
+					id: 'slideLabel',
+				},
+				
+			],
+		},
+		groupSlide: {
+			label: 'Specific Slide In A Group',
+			options: [
+				{
+					type: 'textwithvariables',
+					label: 'Group Name',
+					tooltip: 'Specify the Name of the Group with the slide you want to trigger',
+					id: 'groupName',
+				},
+				{
+					type: 'textwithvariables',
+					label: 'Slide Number (Within Group)',
+					default: 1,
+					tooltip: 'Which slide in the group?',
+					id: 'slideNumber',
+					regex: self.REGEX_NUMBER,
+				},
+				{
+					type: 'textwithvariables',
+					label: 'Presentation Path (Leave Blank for Current)',
+					id: 'presentationPath',
+					default: '',
+					tooltip: 'Leave this blank to target the current presenation',
+					regex: '/^$|^\\d+$|^\\d+(\\.\\d+)*:\\d+$/',
+				},				
 			],
 		},
 		clearall: { label: 'Clear All' },
@@ -1110,7 +1286,7 @@ instance.prototype.actions = function (system) {
 					default: '00:05:00',
 					tooltip:
 						'New duration (or time) for countdown clocks. Also used as optional starting time for elapsed time clocks. Formatted as HH:MM:SS - but you can also use other (shorthand) formats, see the README for more information',
-					regex: '/^\\d*:?\\d*:?\\d*$/',
+					regex: '/^[-|+]?\\d*:?\\d*:?\\d*$/',
 				},
 				{
 					type: 'dropdown',
@@ -1153,7 +1329,7 @@ instance.prototype.actions = function (system) {
 					id: 'clockElapsedTime',
 					default: '00:10:00',
 					tooltip: 'Only Required for Elapsed Time Clock - otherwise this is ignored.',
-					regex: '/^\\d*:?\\d*:?\\d*$/',
+					regex: '/^[-|+]?\\d*:?\\d*:?\\d*$/',
 				},
 			],
 		},
@@ -1177,12 +1353,12 @@ instance.prototype.actions = function (system) {
 						'Comma separated, list of message token names used in the message.  Associated values are given below. Use double commas (,,) to insert an actual comma in a token name. (WARNING! - A simple typo here could crash and burn ProPresenter)',
 				},
 				{
-					type: 'textinput',
+					type: 'textwithvariables',
 					label: 'Comma Separated List Of Message Token Values',
 					id: 'messageValues',
 					default: '',
 					tooltip:
-						'Comma separated, list of values for each message token above. Use double commas (,,) to insert an actual comma in a token value. (WARNING! - A simple typo here could crash and burn ProPresenter)',
+						'Comma separated, list of values for each message token above. Use double commas (,,) to insert an actual comma in a token value. You can optionally use a single variable. (WARNING! - A simple typo here could crash and burn ProPresenter)',
 				},
 			],
 		},
@@ -1254,16 +1430,183 @@ instance.prototype.actions = function (system) {
 				},
 			],
 		},
+		nwSpecificSlide: {
+			label: 'Specific Slide (Network Link)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Playlist Name',
+					id: 'playlistName',
+					tooltip: 'Name of the PlayList that contains the presentation with the slide you want to trigger (Case Sensitive)',
+				},
+				{
+					type: 'textinput',
+					label: 'Presentation Name',
+					id: 'presentationName',
+					tooltip: 'Name of the presentation with the slide you want to trigger (Case Sensitive)',
+				},
+				{
+					type: 'textinput',
+					label: 'Slide Index',
+					id: 'slideIndex',
+					tooltip: 'Index of the slide you want to trigger (1-based)',
+					regex: self.REGEX_NUMBER,
+				},
+				/* Does not seem to do anything (yet)
+				{
+					type: 'textinput',
+					label: 'Slide Name',
+					id: 'slideName',
+					tooltip: 'Name of the slide you want to trigger',
+				}, */
+			],
+		},
+		nwPropTrigger: {
+			label: 'Prop Trigger (Network Link)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Prop Index',
+					id: 'propIndex',
+					tooltip: 'Index of the Prop you want to trigger (1-based)',
+					regex: self.REGEX_NUMBER,
+				},
+				{
+					type: 'textinput',
+					label: 'Prop Name',
+					id: 'propName',
+					tooltip: 'Name of the Prop you want to trigger (Case Sensitive)',
+				},
+			],
+		},
+		nwPropClear: {
+			label: 'Prop Clear (Network Link)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Prop Index',
+					id: 'propIndex',
+					tooltip: 'Index of the Prop you want to clear (1-based)',
+					regex: self.REGEX_NUMBER,
+				},
+				{
+					type: 'textinput',
+					label: 'Prop Name',
+					id: 'propName',
+					tooltip: 'Name of the Prop you want to clear (Case Sensitive)',
+				},
+			],
+		},
+		nwMessageClear: {
+			label: 'Message Clear (Network Link)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Message Index',
+					id: 'messageIndex',
+					tooltip: 'Index of the Message you want to clear (1-based)',
+					regex: self.REGEX_NUMBER,
+				},
+				{
+					type: 'textinput',
+					label: 'Message Name',
+					id: 'messageName',
+					tooltip: 'Name of the Message you want to clear (Case Sensitive)',
+				},
+			],
+		},
+		nwTriggerMedia: {
+			label: 'Trigger Media (Network Link)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Media Playlist Name',
+					id: 'playlistName',
+					tooltip: 'Name of the Media PlayList that contains the media file you want to trigger (Case Sensitive)',
+				},
+				{
+					type: 'textinput',
+					label: 'Media Index',
+					id: 'mediaIndex',
+					tooltip: 'Index of the media file you want to trigger (1-based)',
+					regex: self.REGEX_NUMBER,
+				},
+				{
+					type: 'textinput',
+					label: 'Media Name',
+					id: 'mediaName',
+					tooltip: 'Name of the media file you want to trigger (Case Sensitive)',
+				},
+			],
+		},
+		nwTriggerAudio: {
+			label: 'Trigger Audio (Network Link)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Audio Playlist Name',
+					id: 'playlistName',
+					tooltip: 'Name of the Audio PlayList that contains the audio file you want to trigger (Case Sensitive)',
+				},
+				{
+					type: 'textinput',
+					label: 'Audio Index',
+					id: 'audioIndex',
+					tooltip: 'Index of the audio file you want to trigger (1-based)',
+					regex: self.REGEX_NUMBER,
+				},
+				{
+					type: 'textinput',
+					label: 'Audio Name',
+					id: 'audioName',
+					tooltip: 'Name of the audio file you want to trigger (Case Sensitive)',
+				},
+			],
+		},
+		nwVideoInput: {
+			label: 'Trigger Video Input (Network Link)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Video Index',
+					id: 'videoInputIndex',
+					tooltip: 'Index of the video input you want to trigger (1-based)',
+					regex: self.REGEX_NUMBER,
+				},
+				{
+					type: 'textinput',
+					label: 'Video Input Name',
+					id: 'videoInputName',
+					tooltip: 'Name of the video input you want to trigger (Case Sensitive)',
+				},
+			],
+		},
+		nwCustom: {
+			label: 'Custom Action (Network Link - Support Use Only)',
+			options: [
+				{
+					type: 'textinput',
+					label: 'Endpoint Path',
+					id: 'endpointPath',
+					tooltip: 'REST Endpoint path (must start with /)',
+				},
+				{
+					type: 'textinput',
+					label: 'JSON Data',
+					id: 'jsonData',
+					tooltip: 'JSON Data (no single quotes, no trailing commas)',
+				},
+			],
+		},
 		customAction: {
-			label: 'Custom Action',
+			label: 'Custom Action (Support Use Only)',
 			options: [
 				{
 					type: 'textinput',
 					label: 'Custom Action',
 					id: 'customAction',
 					default: '{"action":"customAction","customProperty":"customValue"}',
-					tooltip:
-						'Advanced use only. Must be a valid JSON action message that ProPresenter understands. An invalid message or even one little mistake can lead to crashes and data loss.',
+					tooltip: 'Advanced use only. Must be a valid JSON action message that ProPresenter understands. An invalid message or even one little mistake can lead to crashes and data loss.',
 				},
 			],
 		},
@@ -1276,6 +1619,8 @@ instance.prototype.actions = function (system) {
 instance.prototype.action = function (action) {
 	var self = this
 	var opt = action.options
+	var cmd = null
+	var nwCmd = null
 
 	switch (action.action) {
 		case 'enableFollowerControl':
@@ -1298,7 +1643,13 @@ instance.prototype.action = function (action) {
 			break
 
 		case 'slideNumber':
-			var index = self.currentState.internal.slideIndex
+			var index = self.currentState.internal.slideIndex // Start with current slide (allows relative jumps using+-)
+
+			// Allow parsing of optional variable in the slide textfield as int
+			var optSlideIndex
+			self.system.emit('variable_parse', String(action.options.slide).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				optSlideIndex = value
+			})
 
 			if (opt.slide[0] === '-' || opt.slide[0] === '+') {
 				// Move back/forward a relative number of slides.
@@ -1306,7 +1657,7 @@ instance.prototype.action = function (action) {
 				index = Math.max(0, index)
 			} else {
 				// Absolute slide number. Convert to an index.
-				index = parseInt(opt.slide) - 1
+				index = parseInt(optSlideIndex) - 1
 			}
 
 			if (index < 0) {
@@ -1317,6 +1668,12 @@ instance.prototype.action = function (action) {
 				index = self.currentState.internal.slideIndex
 			}
 
+			// Allow parsing of optional variable in the presentationPath textfield as string
+			var optPath
+			self.system.emit('variable_parse', String(action.options.path).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				optPath = value
+			})
+
 			var presentationPath = self.currentState.internal.presentationPath
 			if (opt.path !== undefined && opt.path.match(/^\d+$/) !== null) {
 				// Is a relative presentation path. Refers to the current playlist, so extract it
@@ -1324,7 +1681,7 @@ instance.prototype.action = function (action) {
 				presentationPath = presentationPath.split(':')[0] + ':' + opt.path
 			} else if (opt.path !== '') {
 				// Use the path provided. The option's regex validated the format.
-				presentationPath = opt.path
+				presentationPath = optPath
 			}
 
 			cmd = {
@@ -1332,6 +1689,68 @@ instance.prototype.action = function (action) {
 				slideIndex: String(index),
 				// Pro 6 for Windows requires 'presentationPath' to be set.
 				presentationPath: presentationPath,
+			}
+			break
+
+		case 'slideLabel':
+			// Allow parsing of optional variables in all input fields for this action
+			var playlistName
+			self.system.emit('variable_parse', String(action.options.playlistName).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				playlistName = value
+			})
+			var presentationName
+			self.system.emit('variable_parse', String(action.options.presentationName).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				presentationName = value
+			})
+			var slideLabel
+			self.system.emit('variable_parse', String(action.options.slideLabel).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				slideLabel = value
+			})
+
+			// Add new request to internal state and issue request for all playlists (later, code the handles response will see the request stored in internal state and perform the work to complete it)
+			var newSlideByLabelRequest = {}
+			newSlideByLabelRequest.playlistName = playlistName
+			newSlideByLabelRequest.presentationName = presentationName
+			newSlideByLabelRequest.slideLabel = slideLabel
+			self.currentState.internal.awaitingSlideByLabelRequest = newSlideByLabelRequest
+			cmd = {
+				action: 'playlistRequestAll',
+			}
+			break
+		
+		case 'groupSlide':
+			self.log('debug', 'action.options.presentationPath=' + action.options.presentationPath) // TODO: remove
+			// Allow parsing of optional variables in all input fields for this action
+			var groupName
+			self.system.emit('variable_parse', String(action.options.groupName).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				groupName = value
+			})
+			var slideNumber
+			self.system.emit('variable_parse', String(action.options.slideNumber).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				slideNumber = value
+			})
+			var presentationPath = ''
+			self.system.emit('variable_parse', String(action.options.presentationPath).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+				presentationPath = value
+			})
+
+			// If presentationPath was blank then auto set to current presenattion.
+			if (presentationPath.length == 0) {
+				presentationPath = self.currentState.dynamicVariables['current_presentation_path']
+			}
+			
+			if (presentationPath !== undefined && presentationPath !== 'undefined' && presentationPath.length > 0) {
+				// Add new request to internal state and issue presentationRequest (later, code the handles the "presentationCurrent" response will see the request stored in internal state and perform the work to complete it)
+				var newGroupSlideRequest = {}
+				newGroupSlideRequest.groupName = groupName
+				newGroupSlideRequest.slideNumber = slideNumber
+				newGroupSlideRequest.presentationPath = presentationPath
+				self.currentState.internal.awaitingGroupSlideRequest = newGroupSlideRequest
+				cmd = {
+					action: 'presentationRequest',
+					presentationPath: presentationPath,
+					presentationSlideQuality: 0
+				}
 			}
 			break
 
@@ -1482,18 +1901,32 @@ instance.prototype.action = function (action) {
 				opt.clockName = ''
 			}
 
+			// Allow +- prefix to update increment/decrement clockTime
+			var newClockTime = opt.clockTime
+			if (newClockTime.charAt(0) == '-'|| newClockTime.charAt(0) == '+') {
+				var deltaSeconds = self.convertToTotalSeconds(newClockTime)
+				newClockTime = '00:00:' + String(parseInt(self.currentState.dynamicVariables['pro7_clock_' + clockIndex + '_totalseconds']) + parseInt(deltaSeconds))
+			}
+
+			// Allow +- prefix to update increment/decrement clockElapsedTime
+			var newclockElapsedTime = opt.clockElapsedTime
+			if (newclockElapsedTime.charAt(0) == '-'|| newclockElapsedTime.charAt(0) == '+') {
+				var deltaSeconds = self.convertToTotalSeconds(newclockElapsedTime)
+				newclockElapsedTime = '00:00:' + String(parseInt(self.currentState.dynamicVariables['pro7_clock_' + clockIndex + '_totalseconds']) + parseInt(deltaSeconds))
+			}
+
 			cmd = {
 				action: 'clockUpdate',
 				clockIndex: clockIndex,
-				clockTime: opt.clockTime,
+				clockTime: newClockTime,
 				clockOverrun: opt.clockOverRun,
 				clockType: opt.clockType,
 				clockIsPM: String(opt.clockTimePeriodFormat) < 2 ? String(opt.clockTimePeriodFormat) : '2', // Pro6 just wants a 1 (PM) or 0 (AM)
 				clockTimePeriodFormat: String(opt.clockTimePeriodFormat),
 				clockElapsedTime:
 					opt.clockType === '1' && self.currentState.internal.proMajorVersion === 7
-						? opt.clockTime
-						: opt.clockElapsedTime, // When doing countdown to time (clockType==='1'), Pro7 uses clockElapsed value for the "countdown-to-time", so we grab this from clocktime above where the user has entered it (Pro6 uses clocktime for countdown-to-time value)
+						? newClockTime
+						: newclockElapsedTime, // When doing countdown to time (clockType==='1'), Pro7 uses clockElapsed value for the "countdown-to-time", so we grab this from clocktime above where the user has entered it (Pro6 uses clocktime for countdown-to-time value)
 				clockName: opt.clockName,
 			}
 			break
@@ -1507,7 +1940,7 @@ instance.prototype.action = function (action) {
 
 		case 'messageSend':
 			// The below "replace...split dance" for messageKeys and MessageValues produces the required array of items from the comma-separated list of values entered by the user. It also allows double commas (,,) to be treated as an escape method for the user to include a literal comma in the values if desired.
-			// It works by first replacing any double commas with a character 29, and then replacing any single commas with a character 28.  Then it can safely replace character 29 with a comma and finally split using character 28 as the separator.
+			// It works by first replacing any double commas with a character 29 (ascii group seperator char), and then replacing any single commas with a character 28 (ascii file seperator char).  Then it can safely replace character 29 with a comma and finally split using character 28 as the separator.
 			// Note that character 28 and 29 are not "normally typed characters" and therefore considered (somewhat) safe to insert into the string as special markers during processing. Also note that CharCode(29) is matched by regex /\u001D/
 			cmd = {
 				action: 'messageSend',
@@ -1522,6 +1955,13 @@ instance.prototype.action = function (action) {
 					.replace(/,/g, String.fromCharCode(28))
 					.replace(/\u001D/g, ',')
 					.split(String.fromCharCode(28)),
+			}
+			// If there is only one message value - then allow parsing of optional variables...
+			if (cmd.messageValues.length == 1) {
+				// Allow parsing of optional variable in the Message values textfield
+				self.system.emit('variable_parse', String(cmd.messageValues[0]).trim(), function (value) { // Picking a var from the dropdown seems to add a space on end (use trim() to ensure field is a just a clean variable)
+					cmd.messageValues[0] = String(value)
+				})
 			}
 			break
 
@@ -1556,22 +1996,132 @@ instance.prototype.action = function (action) {
 				self.log('debug', 'Failed to convert custom action: ' + customAction + ' to valid JS object: ' + err.message)
 			}
 			break
+		case 'nwSpecificSlide':
+			nwCmd = {
+				endpointPath: '/trigger/playlist',
+				data: { path:
+					[
+						{
+							name: opt.playlistName
+						},
+						{
+							name: opt.presentationName
+						},
+						{
+							index: opt.slideIndex !== undefined && parseInt(opt.slideIndex) >0 ? opt.slideIndex - 1 : null,
+							//name: opt.slideName !== undefined && String(opt.slideName).length > 0 ? opt.slideName : null
+						}
+					]
+				}
+			}
+			break
+		case 'nwPropTrigger':
+			nwCmd = {
+				endpointPath: '/prop/trigger',
+				data: { id:
+					{
+						index: opt.propIndex !== undefined && parseInt(opt.propIndex) >0 ? opt.propIndex - 1 : null,
+						name: opt.propName !== undefined && String(opt.propName).length > 0 ? opt.propName : null
+					}
+				}
+			}
+			break
+		case 'nwPropClear':
+			nwCmd = {
+				endpointPath: '/prop/clear',
+				data: { id:
+					{
+						index: opt.propIndex !== undefined && parseInt(opt.propIndex) >0 ? opt.propIndex - 1 : null,
+						name: opt.propName !== undefined && String(opt.propName).length > 0 ? opt.propName : null
+					}
+				}
+			}
+			break
+		case 'nwMessageClear':
+			nwCmd = {
+				endpointPath: '/message/clear',
+				data: { id:
+					{
+						index: opt.messageIndex !== undefined && parseInt(opt.messageIndex) >0 ? opt.messageIndex - 1 : null,
+						name: opt.messageName !== undefined && String(opt.messageName).length > 0 ? opt.messageName : null
+					}
+				}
+			}
+			break
+		case 'nwTriggerMedia':
+			nwCmd = {
+				endpointPath: '/trigger/media',
+				data: { path:
+					[
+						{
+							name: opt.playlistName
+						},
+						{
+							index: opt.mediaIndex !== undefined && parseInt(opt.mediaIndex) >0 ? opt.mediaIndex - 1 : null,
+							name: opt.mediaName !== undefined && String(opt.mediaName).length > 0 ? opt.mediaName : null
+						}
+					]
+				}
+			}
+			break
+		case 'nwTriggerAudio':
+			nwCmd = {
+				endpointPath: '/trigger/audio',
+				data: { path:
+					[
+						{
+							name: opt.playlistName
+						},
+						{
+							index: opt.audioIndex !== undefined && parseInt(opt.audioIndex) >0 ? opt.audioIndex - 1 : null,
+							name: opt.audioName !== undefined && String(opt.audioName).length > 0 ? opt.audioName : null
+						}
+					]
+				}
+			}
+			break
+		case 'nwVideoInput':
+			nwCmd = {
+				endpointPath: '/trigger/video_input',
+				data: { id:
+					{
+						index: opt.videoInputIndex !== undefined && parseInt(opt.videoInputIndex) >0 ? opt.videoInputIndex - 1 : null,
+						name: opt.videoInputName !== undefined && String(opt.videoInputName).length > 0 ? opt.videoInputName : null
+					}
+				}
+			}
+			break
+		case 'nwCustom':
+			nwCmd = {
+				endpointPath: opt.endpointPath,
+				data: JSON.parse(opt.jsonData)
+			}
 	}
 
-	if (cmd !== undefined) {
+	// Perform actions that use the current ProRemote API (Websocket)
+	if (cmd !== null) {
 		if (self.currentStatus !== self.STATUS_ERROR) {
 			try {
 				var cmdJSON = JSON.stringify(cmd)
+				self.log('debug','Sending JSON: ' + cmdJSON)
 				self.socket.send(cmdJSON)
 			} catch (e) {
-				debug('NETWORK ' + e)
-				self.status(self.STATUS_ERROR, e)
+				self.log('debug','NETWORK ' + e)
+				self.status(self.STATUS_ERROR, e.message)
 			}
 		} else {
-			debug('Socket not connected :(')
+			self.log('debug','Socket not connected :(')
 			self.status(self.STATUS_ERROR)
 		}
 	}
+
+	// Perform actions that use the new NetworkLink API (These actions are considered beta functionality until the new API is finalized by RV)
+	if (nwCmd !== null){
+		self.system.emit('rest', 'http://' + self.config.host + ':' + self.config.port + nwCmd.endpointPath, JSON.stringify(nwCmd.data), function(err, result) {
+			self.log('debug','nwCMD.path: ' + nwCmd.endpointPath + ' nwCmd.data: ' + JSON.stringify(nwCmd.data));
+		}, {},  { connection : { rejectUnauthorized : false }} // Add this header now, in case of a change to https with invalid certs in future.
+		);
+	} 
 }
 
 instance.prototype.init_feedbacks = function () {
@@ -1633,6 +2183,32 @@ instance.prototype.init_feedbacks = function () {
 				id: 'pro7StageLayoutUUID',
 				tooltip: 'Choose the stage display layout to trigger above color change',
 				choices: self.currentState.internal.pro7StageLayouts,
+			},
+		],
+	}
+
+	feedbacks['active_look'] = {
+		label: 'Change colors based on active look',
+		description: 'If the specified look display is active, change colors of the bank',
+		options: [
+			{
+				type: 'colorpicker',
+				label: 'Foreground color',
+				id: 'fg',
+				default: self.rgb(255, 255, 255),
+			},
+			{
+				type: 'colorpicker',
+				label: 'Background color',
+				id: 'bg',
+				default: self.rgb(0, 153, 51),
+			},
+			{
+				type: 'dropdown',
+				label: 'Look',
+				id: 'look',
+				tooltip: 'Choose the Look to trigger above color change',
+				choices: self.currentState.internal.pro7Looks,
 			},
 		],
 	}
@@ -1772,6 +2348,12 @@ instance.prototype.feedback = function (feedback, bank) {
 			return { color: feedback.options.fg, bgcolor: feedback.options.bg }
 		}
 	}
+
+	if (feedback.type == 'active_look') {
+		if (self.currentState.internal.current_pro7_look_id == feedback.options.look) {
+			return { color: feedback.options.fg, bgcolor: feedback.options.bg }
+		}
+	}
 }
 
 /**
@@ -1780,6 +2362,7 @@ instance.prototype.feedback = function (feedback, bank) {
 instance.prototype.onWebSocketMessage = function (message) {
 	var self = this
 	var objData
+
 	// Try to parse websocket payload as JSON...
 	try {
 		objData = JSON.parse(message)
@@ -1817,7 +2400,7 @@ instance.prototype.onWebSocketMessage = function (message) {
 					self.getLooksList()
 				}
 
-				// Ask Pro6 to start sending clock updates (they are sent once per second)
+				// Ask ProPresenter to start sending clock updates (they are sent once per second)
 				self.socket.send(
 					JSON.stringify({
 						action: 'clockStartSendingCurrentTime',
@@ -1840,19 +2423,27 @@ instance.prototype.onWebSocketMessage = function (message) {
 			// Update the current slide index.
 			var slideIndex = parseInt(objData.slideIndex, 10)
 
-			self.currentState.internal.slideIndex = slideIndex
-			self.updateVariable('current_slide', slideIndex + 1)
-			if (objData.presentationPath == self.currentState.internal.presentationPath) {
-				// If the triggered slide is part of the current presentation (for which we have stored the total slides) then update the 'remaining_slides' dynamic variable
-				// Note that, if the triggered slide is NOT part of the current presentation, the 'remaining_slides' dynamic variable will be updated later when we call the presentationCurrent action to refresh current presentation info.
-				self.updateVariable('remaining_slides', self.currentState.dynamicVariables['total_slides'] - slideIndex - 1)
+			if (objData.hasOwnProperty('presentationDestination') && objData.presentationDestination == 1) {
+				// Track Announcement layer presenationPath and Slide Index
+				self.updateVariable('current_announcement_slide', slideIndex + 1)
+				self.updateVariable('current_announcement_presentation_path', String(objData.presentationPath))
+			} else {
+				// Track Presentation layer presenationPath, Slide Index )and optionally remaining slides)
+				self.currentState.internal.slideIndex = slideIndex
+				self.updateVariable('current_slide', slideIndex + 1)
+				self.updateVariable('current_presentation_path', String(objData.presentationPath))
+				if (objData.presentationPath == self.currentState.internal.presentationPath) {
+					// If the triggered slide is part of the current presentation (for which we have stored the total slides) then update the 'remaining_slides' dynamic variable
+					// Note that, if the triggered slide is NOT part of the current presentation, the 'remaining_slides' dynamic variable will be updated later when we call the presentationCurrent action to refresh current presentation info.
+					self.updateVariable('remaining_slides', self.currentState.dynamicVariables['total_slides'] - slideIndex - 1)
+				}
 			}
 
 			// Workaround for bug that occurs when a presentation with automatically triggered slides (eg go-to-next timer), fires one of it's slides while *another* presentation is selected and before any slides within the newly selected presentation are fired. This will lead to total_slides being wrong (and staying wrong) even after the user fires slides within the newly selected presentation.
 			setTimeout(function () {
 				self.getProPresenterState()
 			}, 800)
-			self.log('debug', 'presentationSlideIndex: ' + slideIndex)
+			self.log('debug', 'Slide Triggered: ' + String(objData.presentationPath) + '.' + String(objData.slideIndex) + ' on layerid: ' + String(objData.presentationDestination))
 
 			// Trigger same slide in follower ProPresenter (If configured and connected)
 			if (self.config.control_follower === 'yes' && self.currentState.internal.wsFollowerConnected) {
@@ -1867,8 +2458,7 @@ instance.prototype.onWebSocketMessage = function (message) {
 					var cmdJSON = JSON.stringify(cmd)
 					self.followersocket.send(cmdJSON)
 				} catch (e) {
-					debug('Follower NETWORK ' + e)
-					self.status(self.STATUS_WARNING, e)
+					self.log('debug','Follower NETWORK ' + e)
 				}
 			}
 
@@ -1891,8 +2481,7 @@ instance.prototype.onWebSocketMessage = function (message) {
 					var cmdJSON = JSON.stringify(cmd)
 					self.followersocket.send(cmdJSON)
 				} catch (e) {
-					debug('Follower NETWORK ' + e)
-					self.status(self.STATUS_WARNING, e)
+					self.log('debug','Follower NETWORK ' + e)
 				}
 			}
 			self.currentState.internal.previousTimeOfLeaderClearMessage = timeOfThisClearMessage
@@ -1909,8 +2498,7 @@ instance.prototype.onWebSocketMessage = function (message) {
 					var cmdJSON = JSON.stringify(cmd)
 					self.followersocket.send(cmdJSON)
 				} catch (e) {
-					debug('Follower NETWORK ' + e)
-					self.status(self.STATUS_WARNING, e)
+					self.log('debug','Follower NETWORK ' + e)
 				}
 			}
 			break
@@ -1926,8 +2514,7 @@ instance.prototype.onWebSocketMessage = function (message) {
 					var cmdJSON = JSON.stringify(cmd)
 					self.followersocket.send(cmdJSON)
 				} catch (e) {
-					debug('Follower NETWORK ' + e)
-					self.status(self.STATUS_WARNING, e)
+					self.log('debug','Follower NETWORK ' + e)
 				}
 			}
 			break
@@ -1943,14 +2530,103 @@ instance.prototype.onWebSocketMessage = function (message) {
 					var cmdJSON = JSON.stringify(cmd)
 					self.followersocket.send(cmdJSON)
 				} catch (e) {
-					debug('Follower NETWORK ' + e)
-					self.status(self.STATUS_WARNING, e)
+					self.log('debug','Follower NETWORK ' + e)
 				}
 			}
 			break
 
 		case 'presentationCurrent':
 			var objPresentation = objData.presentation
+
+			// Check for awaiting SlideByLabel request
+			// If found, we need to interate over the groups/slides nested array (linearly in order) - counting slides until it finds a match...
+			// ...then we will have slideIndex to use in the {"action":"presentationTriggerIndex","slideIndex":[SLIDE INDEX],"presentationPath":"[PRESENTATION PATH]"} 
+			if (self.currentState.internal.awaitingSlideByLabelRequest.hasOwnProperty('presentationPath') && self.currentState.internal.awaitingSlideByLabelRequest.presentationPath == objData.presentationPath) {
+				self.log('debug', 'Found matching awaitingSlideByLabelRequest: ' + JSON.stringify(self.currentState.internal.awaitingSlideByLabelRequest))
+				var slideIndex = 0
+				var foundSlide = false
+				for (var presentationSlideGroupsIndex = 0; presentationSlideGroupsIndex < objPresentation.presentationSlideGroups.length; presentationSlideGroupsIndex++) {
+					for (var groupSlidesIndex = 0; groupSlidesIndex < objPresentation.presentationSlideGroups[presentationSlideGroupsIndex].groupSlides.length; groupSlidesIndex++) {
+						if (objPresentation.presentationSlideGroups[presentationSlideGroupsIndex].groupSlides[groupSlidesIndex].slideLabel == self.currentState.internal.awaitingSlideByLabelRequest.slideLabel) {
+							self.log('debug','Labels match: ' + objPresentation.presentationSlideGroups[presentationSlideGroupsIndex].groupSlides[groupSlidesIndex].slideLabel + '=' + self.currentState.internal.awaitingSlideByLabelRequest.slideLabel + ' at index: ' + slideIndex) 
+							foundSlide = true
+						}
+						if (foundSlide) {
+							break
+						} else {
+							slideIndex++
+						}
+					}
+					if (foundSlide) {
+						break
+					}
+				}
+				if (foundSlide) {
+					// we have finally found the slide, within it's presentation & playlist - send presentationTriggerIndex to trigger it
+					cmd = {
+						action: 'presentationTriggerIndex',
+						slideIndex: String(slideIndex),
+						presentationPath: self.currentState.internal.awaitingSlideByLabelRequest.presentationPath
+					}
+					self.log('debug', 'cmd=' + JSON.stringify(cmd))
+					try {
+						if (self.socket.readyState == 1 /*OPEN*/) {
+							self.socket.send(JSON.stringify(cmd))
+						}
+					} catch (e) {
+						self.log('debug','Socket Send Error: ' + e.message)
+					}
+				} else {
+					self.log('debug','Could not find slide with label: ' + self.currentState.internal.awaitingSlideByLabelRequest.slideLabel)
+				}
+				self.currentState.internal.awaitingSlideByLabelRequest = {} // All done, reset awaitingSlideByLabelRequest
+			}
+
+			// Check for awaiting GroupSlide request
+			// If found, we need to interate over the groups/slides nested array (linearly in order) - to find specified slide in specified group
+			// ...then we will have slideIndex to use in the {"action":"presentationTriggerIndex","slideIndex":[SLIDE INDEX],"presentationPath":"[PRESENTATION PATH]"} 
+			if (self.currentState.internal.awaitingGroupSlideRequest.hasOwnProperty('presentationPath') && self.currentState.internal.awaitingGroupSlideRequest.presentationPath == objData.presentationPath) {
+				self.log('debug', 'Found matching awaitingGroupSlideRequest: ' + JSON.stringify(self.currentState.internal.awaitingGroupSlideRequest))
+				var slideIndex = 0
+				var foundSlide = false
+				for (var presentationSlideGroupsIndex = 0; presentationSlideGroupsIndex < objPresentation.presentationSlideGroups.length; presentationSlideGroupsIndex++) {
+					for (var groupSlidesIndex = 0; groupSlidesIndex < objPresentation.presentationSlideGroups[presentationSlideGroupsIndex].groupSlides.length; groupSlidesIndex++) {
+						self.log('debug', 'groupname: ' + objPresentation.presentationSlideGroups[presentationSlideGroupsIndex].groupName + ' groupSlidesIndex: ' + groupSlidesIndex + ' total slideIndex: ' + slideIndex) //TODO: remove
+						if (objPresentation.presentationSlideGroups[presentationSlideGroupsIndex].groupName == self.currentState.internal.awaitingGroupSlideRequest.groupName && groupSlidesIndex == self.currentState.internal.awaitingGroupSlideRequest.slideNumber - 1 ) {
+							self.log('debug','Found Group Slide: ' + objPresentation.presentationSlideGroups[presentationSlideGroupsIndex].groupName  + '=' + self.currentState.internal.awaitingGroupSlideRequest.groupName + ' at index: ' + slideIndex) 
+							foundSlide = true
+						}
+						if (foundSlide) {
+							break
+						} else {
+							slideIndex++
+						}
+					}
+					if (foundSlide) {
+						break
+					}
+				}
+				if (foundSlide) {
+					// we have finally found the slide, within it's presentation & playlist - send presentationTriggerIndex to trigger it
+					cmd = {
+						action: 'presentationTriggerIndex',
+						slideIndex: String(slideIndex),
+						presentationPath: self.currentState.internal.awaitingGroupSlideRequest.presentationPath
+					}
+					self.log('debug', 'cmd=' + JSON.stringify(cmd))
+					try {
+						if (self.socket.readyState == 1 /*OPEN*/) {
+							self.socket.send(JSON.stringify(cmd))
+						}
+					} catch (e) {
+						self.log('debug','Socket Send Error: ' + e.message)
+					}
+				} else {
+					self.log('debug','Could not find slide ' + self.currentState.internal.awaitingGroupSlideRequest.slideNumber + ' in group: ' + self.currentState.internal.awaitingGroupSlideRequest.groupName)
+				}
+				self.currentState.internal.awaitingGroupSlideRequest = {} // All done, reset awaitingGroupSlideRequest
+			}
+
 
 			// If playing from the library on Mac, the presentationPath here will be the full
 			//	path to the document on the user's computer ('/Users/JohnDoe/.../filename.pro6'),
@@ -1987,11 +2663,55 @@ instance.prototype.onWebSocketMessage = function (message) {
 			self.log('info', 'presentationCurrent: ' + presentationName)
 			break
 
+		case 'clockCurrentTime':
 		case 'clockCurrentTimes':
-			var objWatchedClock = objData.clockTimes
+			var objClockTimes = objData.clockTimes
+
+			// Update dyn var for watched clock/timer
 			if (self.config.indexOfClockToWatch >= 0 && self.config.indexOfClockToWatch < objData.clockTimes.length) {
 				self.updateVariable('watched_clock_current_time', objData.clockTimes[self.config.indexOfClockToWatch])
 			}
+		
+			// Update complete list of dyn vars for all clocks/timers (two for each clock - one with and one without hours)
+			var updateModuleVars = false
+			for (let clockIndex = 0; clockIndex < objClockTimes.length; clockIndex++) {
+				// Update (add) dynamic clock variable
+				self.currentState.dynamicVariables['pro7_clock_' + clockIndex] = self.formatClockTime(objClockTimes[clockIndex])
+				self.updateVariable('pro7_clock_' + clockIndex, self.currentState.dynamicVariables['pro7_clock_' + clockIndex])
+				// If we don't already have this dynamic var defined then add a definition for it (we'll update Companion once loop is done)
+				var varDef = { label: 'Pro7 Clock ' + clockIndex, name: 'pro7_clock_' + clockIndex}
+				if (!self.currentState.dynamicVariablesDefs.some(({name}) => name === varDef.name)) {
+					self.currentState.dynamicVariablesDefs.push(varDef)
+					updateModuleVars = true
+				}
+
+				// Update (add) dynamic clock variable (hourless)
+				self.currentState.dynamicVariables['pro7_clock_' + clockIndex + '_hourless'] = self.formatClockTime(objClockTimes[clockIndex], false)
+				self.updateVariable('pro7_clock_' + clockIndex + '_hourless', self.currentState.dynamicVariables['pro7_clock_' + clockIndex + '_hourless'])
+				// If we don't already have this dynamic var defined then add a definition for it (we'll update Companion once loop is done)
+				var varDef = { label: 'Pro7 Clock ' + clockIndex + ' Hourless', name: 'pro7_clock_' + clockIndex + '_hourless'}
+				if (!self.currentState.dynamicVariablesDefs.some(({name}) => name === varDef.name)) {
+					self.currentState.dynamicVariablesDefs.push(varDef)
+					updateModuleVars = true
+				}
+
+				// Update (add) dynamic clock variable (totalseconds)
+				self.currentState.dynamicVariables['pro7_clock_' + clockIndex + '_totalseconds'] = self.convertToTotalSeconds(objClockTimes[clockIndex])
+				self.updateVariable('pro7_clock_' + clockIndex + '_totalseconds', self.currentState.dynamicVariables['pro7_clock_' + clockIndex + '_totalseconds'])
+				// If we don't already have this dynamic var defined then add a definition for it (we'll update Companion once loop is done)
+				var varDef = { label: 'Pro7 Clock ' + clockIndex + ' Total Seconds', name: 'pro7_clock_' + clockIndex + '_totalseconds'}
+				if (!self.currentState.dynamicVariablesDefs.some(({name}) => name === varDef.name)) {
+					self.currentState.dynamicVariablesDefs.push(varDef)
+					updateModuleVars = true
+				}
+				
+			}
+
+			// Tell Companion about any new module vars for clocks that were added (so they become visible in WebUI etc)
+			if (updateModuleVars) {
+				self.setVariableDefinitions(self.currentState.dynamicVariablesDefs)
+			}
+			
 			break
 
 		case 'stageDisplaySetIndex': // Companion User (or someone else) has set a new Stage Display Layout in Pro6 (Time to refresh stage display dynamic variables)
@@ -2004,9 +2724,11 @@ instance.prototype.onWebSocketMessage = function (message) {
 			}
 			break
 
-		case 'stageDisplaySets': // The response from sending stageDisplaySets is a reply that includes an array of Stage Display Layout Names, and also stageDisplayIndex set to the index of the currently selected layout
+		case 'stageDisplaySets':
 			if (self.currentState.internal.proMajorVersion === 6) {
+				// ******* PRO6 *********
 				// Handle Pro6 Stage Display Info...
+				// The Pro6 response from sending stageDisplaySets is a reply that includes an array of stageDisplaySets, and an index "stageDisplayIndex" that is set to the index of the currently selected layout for the single stage display in Pro6
 				var stageDisplaySets = objData.stageDisplaySets
 				var stageDisplayIndex = objData.stageDisplayIndex
 				self.currentState.internal.stageDisplayIndex = parseInt(stageDisplayIndex, 10)
@@ -2014,12 +2736,19 @@ instance.prototype.onWebSocketMessage = function (message) {
 				self.updateVariable('current_stage_display_name', stageDisplaySets[parseInt(stageDisplayIndex, 10)])
 				self.checkFeedbacks('stagedisplay_active')
 			} else if (self.currentState.internal.proMajorVersion === 7) {
+				// ******* PRO7 *********
 				// Handle Pro7 Stage Display Info...
+				// The Pro7 response from sending stageDisplaySets is a reply that includes TWO arrays/lists
+				// The list "stageLayouts" includes the name and id of each stagelayout defined in Pro7
+				// The list "stageScreens: includes name, id and id of the selected stageLayout for all stage output screens defined in Pro7
 				var watchScreen_StageLayoutSelectedLayoutUUID = ''
 
-				// Refresh list of all stagelayouts
+				// Refresh list of all stageLayouts (name and id)
 				if (objData.hasOwnProperty('stageLayouts')) {
+					// Empty old list of stageLayouts
 					self.currentState.internal.pro7StageLayouts = []
+
+					// Refresh list from new data
 					objData.stageLayouts.forEach(function (stageLayout) {
 						self.currentState.internal.pro7StageLayouts.push({
 							id: stageLayout['stageLayoutUUID'],
@@ -2028,9 +2757,16 @@ instance.prototype.onWebSocketMessage = function (message) {
 					})
 				}
 
-				// Refresh list of stage screens, update the records of screen names (and layout UUID), and record UUID of the current_pro7_stage_layout_name for selected watched screen
+				// Refresh list of stage OUTPUT SCREENS
+				// Update the records of screen names (and selected layout UUID)
+				// Updates dynamic module vars for stage layouts
+				// Also record UUID of the current_pro7_stage_layout_name for selected watched screen
 				if (objData.hasOwnProperty('stageScreens')) {
+					// Empty old list of pro7StageScreens
 					self.currentState.internal.pro7StageScreens = []
+
+					// Refresh list from new data
+					var updateModuleVars = false
 					objData.stageScreens.forEach(function (stageScreen) {
 						var stageScreenName = stageScreen['stageScreenName']
 						var stageScreenUUID = stageScreen['stageScreenUUID']
@@ -2041,7 +2777,7 @@ instance.prototype.onWebSocketMessage = function (message) {
 							layoutUUID: stageLayoutSelectedLayoutUUID,
 						})
 
-						// Update record of layout name for this pro7 stage screen
+						// Update dynamic module var with current layout name for this pro7 stage screen
 						try {
 							self.currentState.dynamicVariables[stageScreenName + '_pro7_stagelayoutname'] =
 								self.currentState.internal.pro7StageLayouts.find(
@@ -2051,6 +2787,12 @@ instance.prototype.onWebSocketMessage = function (message) {
 								stageScreenName + '_pro7_stagelayoutname',
 								self.currentState.dynamicVariables[stageScreenName + '_pro7_stagelayoutname']
 							)
+							// If we don't already have this dynamic var defined then add a definition for it (we'll update Companion once loop is done)
+							var varDef = { label: stageScreenName + '_pro7_stagelayoutname', name: stageScreenName + '_pro7_stagelayoutname'}
+							if (!self.currentState.dynamicVariablesDefs.some(({name}) => name === varDef.name)) {
+								self.currentState.dynamicVariablesDefs.push(varDef)
+								updateModuleVars = true
+							}
 						} catch (e) {
 							self.log(
 								'warn',
@@ -2069,6 +2811,11 @@ instance.prototype.onWebSocketMessage = function (message) {
 							self.checkFeedbacks('stagedisplay_active')
 						}
 					})
+					
+					// Tell Companion about any new module vars for stage screens that were added (so they become visible in WebUI etc)
+					if (updateModuleVars) {
+						self.setVariableDefinitions(self.currentState.dynamicVariablesDefs)
+					}
 				}
 
 				// Update current_pro7_stage_layout_name
@@ -2090,18 +2837,42 @@ instance.prototype.onWebSocketMessage = function (message) {
 
 		case 'looksRequest': // Response from sending looksRequest
 			if (objData.hasOwnProperty('looks')) {
-				self.currentState.internal.pro7Looks = []
+				var currentLooks = []
 				objData.looks.forEach(function (look) {
 					var lookName = look['lookName']
 					var lookID = look['lookID']
-					self.currentState.internal.pro7Looks.push({ id: lookID, label: lookName })
+					currentLooks.push({ id: lookID, label: lookName })
 				})
+
 				// Update dyn var for current look name
 				self.updateVariable('current_pro7_look_name', objData.activeLook.lookName)
+				// Keep track of ID for current look
+				self.currentState.internal.current_pro7_look_id = objData.activeLook.lookID
 
-				self.log('info', objData.activeLook.lookName)
-				self.log('info', 'Got Pro7 Looks List')
-				self.actions() // Update dropdown lists for Looks
+				self.log('debug', 'Got Pro7 Looks List, Active Look = ' + objData.activeLook.lookName)
+
+				// Compare currentLooks with self.currentState.internal.pro7Looks If it is different then update list and UI
+				var looksChanged = false
+				if (self.currentState.internal.pro7Looks.length == currentLooks.length) {
+					for (var index=0; index < self.currentState.internal.pro7Looks.length; index++) {
+						var internalLook = self.currentState.internal.pro7Looks[index]
+						if (internalLook.lookName != currentLooks[index].lookName || internalLook.lookID != currentLooks[index].lookID) {
+							looksChanged = true
+							break
+						}
+					}
+				} else {
+					looksChanged = true
+				}
+
+				if (looksChanged) {
+					self.log('debug', 'Looks changed. Updated internal list ')
+					self.currentState.internal.pro7Looks = currentLooks.slice() // Update .internal.pro7Looks to same as currentLooks
+					self.actions() // Update dropdown lists for Looks
+					self.init_feedbacks() // Update dropdown lists for look feedback.
+				}
+
+				self.checkFeedbacks('active_look')
 			}
 			break
 
@@ -2117,6 +2888,27 @@ instance.prototype.onWebSocketMessage = function (message) {
 				self.log('info', 'Got Pro7 Macros List')
 				self.actions() // Update dropdown lists for Looks
 			}
+			break
+		
+		case 'playlistRequestAll':
+			self.log('debug', 'Received All PlayLists')
+			// Check if there is an awaiting SlideByLabelRequest...
+			// ..If so, cAll recursivelyScanPlaylistsObjToTriggerSlideByLabel() to find presentation path
+			//  Update self.currentState.internal.awaitingSlideByLabelRequest with the matching path and then send a presentationRequest.
+			//  presentationRequest will return a presetationCurrent response, and because there is an waiting SlideByLabelRequest, the response will be searched for matching slide so the request can finally be completed.
+			var awaitingSlideByLabelRequest = self.currentState.internal.awaitingSlideByLabelRequest
+			if (awaitingSlideByLabelRequest.hasOwnProperty('playlistName') && awaitingSlideByLabelRequest.hasOwnProperty('presentationName') && awaitingSlideByLabelRequest.hasOwnProperty('slideLabel')) {
+				self.log('debug', 'Scanning playlists for: [' + awaitingSlideByLabelRequest.playlistName + ', ' + awaitingSlideByLabelRequest.presentationName  + ', ' + awaitingSlideByLabelRequest.slideLabel + ']')
+				
+				// Prepare for recursive search (using self.currentState.internal.matchingPlaylistItemFound as a flag between recursive calls to recursivelyScanPlaylistsObjToTriggerSlideByLabel)
+				try {
+					self.currentState.internal.matchingPlaylistItemFound = false
+					self.recursivelyScanPlaylistsObjToTriggerSlideByLabel(JSON.parse(message), awaitingSlideByLabelRequest.playlistName, awaitingSlideByLabelRequest.presentationName, awaitingSlideByLabelRequest.slideLabel)
+				} catch (err) {
+					self.log('debug', err.message)
+				}				
+			}
+			break
 	}
 
 	if (
@@ -2182,15 +2974,6 @@ instance.prototype.onFollowerWebSocketMessage = function (message) {
 			var presentationName = objPresentation.presentationName.replace(/\.pro6$/i, '')
 			self.log('info', 'Follower presentationCurrent: ' + presentationName)
 			break
-
-		case 'clockCurrentTimes':
-			break
-
-		case 'stageDisplaySetIndex':
-			break
-
-		case 'stageDisplaySets':
-			break
 	}
 }
 
@@ -2246,14 +3029,26 @@ instance.prototype.getProPresenterState = function () {
 	if (self.currentState.internal.wsConnected === false) {
 		return
 	}
-	if (self.config.sendPresentationCurrentMsgs !== 'no') {
-		// User can optionally block sending these msgs to ProPresenter (as it can cause performance issues with Pro7)
-		self.socket.send(
-			JSON.stringify({
-				action: 'presentationCurrent',
-				presentationSlideQuality: '0', // Setting to 0 stops Pro6 from including the slide preview image data (which is a lot of data) - no need to get slide preview images since we are not using them!
-			})
-		)
+
+	if (self.config.sendPresentationCurrentMsgs !== 'no') { // User can optionally block sending these msgs to ProPresenter (as it can cause performance issues with ProPresenter on Windows)
+		if (self.config.typeOfPresenationRequest == 'auto') {  // Decide which type of request to get current presentation info
+			// Just send presentationCurrent with presentationSlideQuality = '0' (string) (25-Jan-2022 This was the default way "always". It Performs well for Pro7 and Pro6 on MacOS - very slow for Pro6/7 on Windows)
+			self.socket.send(
+				JSON.stringify({
+					action: 'presentationCurrent',
+					presentationSlideQuality: '0', // Setting to 0 stops Pro from including the slide preview image data (which is a lot of data) - no need to get slide preview images since we are not using them!
+				})
+			)
+		} else {
+			// Send presentationRequest with presenatationSlideQuality = 0 (int) (At time of adding this option, this was only method that performs well for Pro7.8+ on Mac/Win and Pro6 on Mac)
+			self.socket.send(
+				JSON.stringify({
+					action: 'presentationRequest',
+					presentationSlideQuality: 0, // Setting to 0 stops Pro from including the slide preview image data (which is a lot of data) - no need to get slide preview images since we are not using them!
+					presentationPath: self.currentState.dynamicVariables['current_presentation_path'],
+				})
+			)
+		}
 	}
 
 	if (self.currentState.dynamicVariables.current_slide === 'N/A') {
@@ -2315,6 +3110,143 @@ instance.prototype.getMacrosList = function () {
 			action: 'macrosRequest',
 		})
 	)
+}
+
+/*
+ * Format Time string 
+ */
+instance.prototype.formatClockTime = function (clockTimeString, includeHours = true) {
+	// Record if time is negative
+	var timeIsNegative = false
+	if (clockTimeString.length > 0) {
+		timeIsNegative = (clockTimeString.charAt(0) == '-')
+	}
+	
+	// Remove decimal (sub-seconds) and save in formattedClockTimeString
+	var formattedClockTimeString = ''
+	if (clockTimeString.indexOf('.') > 0) {
+		formattedClockTimeString = clockTimeString.slice(0,clockTimeString.indexOf('.'))
+	} else {
+		formattedClockTimeString = clockTimeString
+	}
+
+	var hours = ''
+	var minutes = ''
+	var seconds = ''
+	var timeParts = formattedClockTimeString.split(':')
+	if (timeParts.length ==  3) {
+		hours = timeParts.shift()
+	}
+	if (timeParts.length ==  2) {
+		minutes = timeParts.shift()
+	}
+	if (timeParts.length ==  1) {
+		seconds = timeParts.shift()
+	}
+	
+	if (includeHours) {
+		return hours + ":" + minutes + ":" + seconds
+	} else {
+		// If time was negative the negative sign will in the hours component that is not returned here.  Add a negtive sign to the minutes component.
+		if (timeIsNegative) {
+			minutes = '-' + minutes
+		}
+		return  minutes + ":" + seconds
+	}
+}
+
+/*
+* Conver Time string to total seconds
+*/
+instance.prototype.convertToTotalSeconds = function (clockTimeString) {
+	var totalSeconds=0
+	
+	// Record if time is negative
+	var timeIsNegative = false
+	if (clockTimeString.length > 0) {
+		timeIsNegative = (clockTimeString.charAt(0) == '-')
+	}
+	
+	// Remove any decimal (sub-seconds) and save in formattedClockTimeString
+	var formattedClockTimeString = ''
+	if (clockTimeString.indexOf('.') > 0) {
+		formattedClockTimeString = clockTimeString.slice(0,clockTimeString.indexOf('.'))
+	} else {
+		formattedClockTimeString = clockTimeString
+	}
+
+	// If time is negative remove leading - prefix from string
+	if (timeIsNegative) {
+		formattedClockTimeString = formattedClockTimeString.slice(1)
+	}
+
+	var hours = 0
+	var minutes = 0
+	var seconds = 0
+	var timeParts = formattedClockTimeString.split(':')
+	if (timeParts.length ==  3) {
+		hours = parseInt(timeParts.shift())
+		if (!isNaN(hours)) {
+			totalSeconds = totalSeconds + 3600 * hours
+		}
+	}
+	if (timeParts.length ==  2) {
+		minutes = parseInt(timeParts.shift())
+		if (!isNaN(minutes)) {
+			totalSeconds = totalSeconds + 60 * minutes
+		}
+	}
+	if (timeParts.length ==  1) {
+		seconds = parseInt(timeParts.shift())
+		if (!isNaN(seconds)) {
+			totalSeconds = totalSeconds + seconds
+		}
+	}
+
+	if (timeIsNegative) {
+		totalSeconds = totalSeconds * -1
+	}
+	
+	return totalSeconds
+}
+
+/*
+* Recursively Scan PlaylistsObject to find first presentation that matches given name, in the first playlist that matches given name.
+* Calls presentationRequest (whose response handler will complete the request)
+*/
+
+instance.prototype.recursivelyScanPlaylistsObjToTriggerSlideByLabel = function (playlistObj, playlistName, presentationName, slideLabel) {
+	var self = this
+
+	Object.keys(playlistObj).forEach(key => {
+		if (self.currentState.internal.matchingPlaylistItemFound) {
+			return
+		}
+		if (playlistObj.hasOwnProperty('playlistName') && playlistObj.hasOwnProperty('playlist') && playlistObj.playlistName == playlistName) {
+			var matchingPlaylistItem = playlistObj.playlist.find(playlistItem => playlistItem.hasOwnProperty('playlistItemName') && playlistItem.playlistItemName == presentationName) // TODO: Consider Using Regex to enable optional matching with any - [ arrangement ] suffix
+			self.currentState.internal.matchingPlaylistItemFound=true
+			self.log('debug', 'Found match: ' + JSON.stringify(matchingPlaylistItem))
+			// Update self.currentState.internal.awaitingSlideByLabelRequest with the matching path (so response to presentationRequest can check)
+			self.currentState.internal.awaitingSlideByLabelRequest.presentationPath = matchingPlaylistItem.playlistItemLocation
+			// send presentationRequest
+			cmd = {
+				action: "presentationRequest",
+				presentationPath: self.currentState.internal.awaitingSlideByLabelRequest.presentationPath,
+				presentationSlideQuality: 0
+			}
+			try {
+				if (self.socket.readyState == 1 /*OPEN*/) {
+					self.socket.send(JSON.stringify(cmd))
+				}
+			} catch (e) {
+				self.log('debug','Socket Send Error: ' + e.message)
+			}
+		}
+	
+		if (typeof playlistObj[key] === 'object' && playlistObj[key] !== null) {
+			self.recursivelyScanPlaylistsObjToTriggerSlideByLabel(playlistObj[key],playlistName, presentationName, slideLabel)
+			}
+		})
 }
 
 instance_skel.extendedBy(instance)
